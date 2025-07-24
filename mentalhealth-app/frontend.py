@@ -95,6 +95,32 @@ def main(page: ft.Page):
         expand=True
     )
 
+    def fetch_mood_history():
+        try:
+            response = requests.post(
+                "http://localhost:8000/mood_history",
+                data={
+                    "username": current_user.value,
+                    "password": current_password.value
+                },
+                headers={"Content-Type": "application/x-www-form-urlencoded"}
+            )
+            if response.status_code == 200:
+                mood_history.controls.clear()
+                for entry in response.json():
+                    mood_history.controls.append(
+                        ft.ListTile(
+                            title=ft.Text(f"Mood: {entry['score']}"),
+                            subtitle=ft.Text(f"Notes: {entry['notes'] or 'None'}"),
+                            trailing=ft.Text(datetime.fromisoformat(entry['created_at']).strftime("%H:%M"))
+                        )
+                    )
+                page.update()
+            else:
+                show_snackbar("Failed to fetch mood history")
+        except Exception as e:
+            show_snackbar(f"Error: {str(e)}")
+
     def submit_mood(e):
         if not mood_slider.value:
             show_snackbar("Please select a mood score!")
@@ -114,44 +140,110 @@ def main(page: ft.Page):
             
             if response.status_code == 200:
                 show_snackbar("Mood logged successfully!", ft.Colors.GREEN)
-                mood_history.controls.insert(0, ft.ListTile(
-                    title=ft.Text(f"Mood: {mood_slider.value}"),
-                    subtitle=ft.Text(f"Notes: {mood_notes.value or 'None'}"),
-                    trailing=ft.Text(datetime.now().strftime("%H:%M"))
-                ))
                 mood_slider.value = 5
                 mood_notes.value = ""
-                page.update()
+                fetch_mood_history()  # Refresh history after submission
             else:
                 show_snackbar(f"Error: {response.json().get('detail', 'Failed to log mood')}")
         except Exception as e:
             show_snackbar(f"Connection error: {str(e)}")
 
+    def fetch_activities():
+        try:
+            response = requests.post(
+                "http://localhost:8000/activity_history",
+                data={
+                    "username": current_user.value,
+                    "password": current_password.value
+                },
+                headers={"Content-Type": "application/x-www-form-urlencoded"}
+            )
+            if response.status_code == 200:
+                activities_list.controls.clear()
+                for entry in response.json():
+                    activities_list.controls.append(
+                        ft.ListTile(
+                            title=ft.Text(entry["activity"]),
+                            subtitle=ft.Text(f"{entry['duration']} minutes"),
+                            trailing=ft.Text(datetime.fromisoformat(entry["created_at"]).strftime("%H:%M"))
+                        )
+                    )
+                page.update()
+            else:
+                show_snackbar("Failed to fetch activities")
+        except Exception as e:
+            show_snackbar(f"Error: {str(e)}")
+
     def add_activity(e):
         if not activity_input.value or not activity_duration.value:
             show_snackbar("Please enter activity and duration!")
             return
-        
-        activities_list.controls.insert(0, ft.ListTile(
-            title=ft.Text(activity_input.value),
-            subtitle=ft.Text(f"{activity_duration.value} minutes"),
-            trailing=ft.Text(datetime.now().strftime("%H:%M"))
-        ))
-        activity_input.value = ""
-        activity_duration.value = ""
-        page.update()
+        try:
+            response = requests.post(
+                "http://localhost:8000/activity",
+                data={
+                    "username": current_user.value,
+                    "password": current_password.value,
+                    "activity": activity_input.value,
+                    "duration": int(activity_duration.value)
+                },
+                headers={"Content-Type": "application/x-www-form-urlencoded"}
+            )
+            if response.status_code == 200:
+                activity_input.value = ""
+                activity_duration.value = ""
+                fetch_activities()
+            else:
+                show_snackbar("Failed to log activity")
+        except Exception as e:
+            show_snackbar(f"Error: {str(e)}")
+
+    def fetch_journal_entries():
+        try:
+            response = requests.post(
+                "http://localhost:8000/journal_history",
+                data={
+                    "username": current_user.value,
+                    "password": current_password.value
+                },
+                headers={"Content-Type": "application/x-www-form-urlencoded"}
+            )
+            if response.status_code == 200:
+                journal_entries.controls.clear()
+                for entry in response.json():
+                    journal_entries.controls.append(
+                        ft.ListTile(
+                            title=ft.Text(datetime.fromisoformat(entry["created_at"]).strftime("%b %d, %H:%M")),
+                            subtitle=ft.Text(entry["entry"])
+                        )
+                    )
+                page.update()
+            else:
+                show_snackbar("Failed to fetch journal entries")
+        except Exception as e:
+            show_snackbar(f"Error: {str(e)}")
 
     def add_journal_entry(e):
         if not journal_entry.value:
             show_snackbar("Journal entry cannot be empty!")
             return
-        
-        journal_entries.controls.insert(0, ft.ListTile(
-            title=ft.Text(datetime.now().strftime("%b %d, %H:%M")),
-            subtitle=ft.Text(journal_entry.value),
-        ))
-        journal_entry.value = ""
-        page.update()
+        try:
+            response = requests.post(
+                "http://localhost:8000/journal",
+                data={
+                    "username": current_user.value,
+                    "password": current_password.value,
+                    "entry": journal_entry.value
+                },
+                headers={"Content-Type": "application/x-www-form-urlencoded"}
+            )
+            if response.status_code == 200:
+                journal_entry.value = ""
+                fetch_journal_entries()
+            else:
+                show_snackbar("Failed to save journal entry")
+        except Exception as e:
+            show_snackbar(f"Error: {str(e)}")
 
     def change_tab(index):
         content_column.controls.clear()
@@ -203,6 +295,11 @@ def main(page: ft.Page):
     
     def login(e):
         try:
+            # Clear any existing data first
+            mood_history.controls.clear()
+            activities_list.controls.clear()
+            journal_entries.controls.clear()
+            
             response = requests.post(
                 "http://localhost:8000/login",
                 data={
@@ -216,6 +313,11 @@ def main(page: ft.Page):
                 current_password.value = login_password.value
                 show_snackbar("Login successful!", ft.Colors.GREEN)
                 page.go("/dashboard")
+                fetch_mood_history()
+                fetch_activities()
+                fetch_journal_entries()
+            else:
+                show_snackbar("Invalid credentials")
         except Exception as e:
             show_snackbar(f"Error: {str(e)}")
 
@@ -248,7 +350,16 @@ def main(page: ft.Page):
         except Exception as e:
             show_snackbar(f"Connection error: {str(e)}")
 
-    # Registration view
+    def logout(e):
+        # Clear all user data
+        current_user.value = ""
+        current_password.value = ""
+        mood_history.controls.clear()
+        activities_list.controls.clear()
+        journal_entries.controls.clear()
+        page.go("/login")
+
+        
     register_view = ft.View(
         "/register",
         [
@@ -273,7 +384,7 @@ def main(page: ft.Page):
         [
             ft.AppBar(
                 title=ft.Text(f"Welcome, {current_user.value}"),
-                actions=[ft.TextButton("Logout", on_click=lambda _: page.go("/login"))]
+                actions=[ft.TextButton("Logout", on_click=logout)]  # Changed to use logout function
             ),
             main_content
         ],

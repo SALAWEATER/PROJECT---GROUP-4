@@ -10,7 +10,7 @@ from typing import Optional
 
 # Correct imports from your modules
 from database import engine, get_db, Base  # Add Base here
-from models import User, MoodEntry
+from models import ActivityEntry, JournalEntry, User, MoodEntry
 
 # Create tables - NOW WITH ACCESS TO Base
 Base.metadata.create_all(bind=engine)
@@ -32,6 +32,82 @@ def authenticate_user(db: Session, username: str, password: str):
     return user
 
 # Endpoints
+@app.post("/mood_history")
+async def mood_history(
+    username: str = Form(...),
+    password: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    user = authenticate_user(db, username, password)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+    entries = db.query(MoodEntry).filter(MoodEntry.user_id == user.id).order_by(MoodEntry.created_at.desc()).limit(10).all()
+    return [
+        {
+            "score": entry.score,
+            "notes": entry.notes,
+            "created_at": entry.created_at.isoformat()
+        }
+        for entry in entries
+    ]
+
+@app.post("/activity_history")
+async def activity_history(
+    username: str = Form(...),
+    password: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    user = authenticate_user(db, username, password)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+    
+    # Strictly filter by user_id and verify ownership
+    entries = db.query(ActivityEntry).filter(
+        ActivityEntry.user_id == user.id
+    ).order_by(
+        ActivityEntry.created_at.desc()
+    ).limit(20).all()
+    
+    if not entries:
+        return []
+        
+    return [
+        {
+            "activity": entry.activity,
+            "duration": entry.duration,
+            "created_at": entry.created_at.isoformat()
+        }
+        for entry in entries
+    ]
+
+@app.post("/journal_history")
+async def journal_history(
+    username: str = Form(...),
+    password: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    user = authenticate_user(db, username, password)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+    
+    # Strictly filter by user_id and verify ownership
+    entries = db.query(JournalEntry).filter(
+        JournalEntry.user_id == user.id
+    ).order_by(
+        JournalEntry.created_at.desc()
+    ).limit(20).all()
+    
+    if not entries:
+        return []
+        
+    return [
+        {
+            "entry": entry.entry,
+            "created_at": entry.created_at.isoformat()
+        }
+        for entry in entries
+    ]
+
 @app.get("/")
 async def root():
     return {
@@ -99,20 +175,6 @@ async def login(
         "user_id": user.id,
         "username": user.username
     }
-# Add this to your existing app.py
-@app.post("/login")
-async def login(
-    username: str = Form(...),
-    password: str = Form(...),
-    db: Session = Depends(get_db)
-):
-    user = authenticate_user(db, username, password)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials"
-        )
-    return {"status": "success", "username": username}
 
 @app.post("/mood")
 async def log_mood(
@@ -146,6 +208,47 @@ async def log_mood(
         "score": score,
         "timestamp": mood_entry.created_at.isoformat()
     }
+
+@app.post("/activity")
+async def log_activity(
+    username: str = Form(...),
+    password: str = Form(...),
+    activity: str = Form(...),
+    duration: int = Form(...),
+    db: Session = Depends(get_db)
+):
+    user = authenticate_user(db, username, password)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+    entry = ActivityEntry(
+        user_id=user.id,
+        activity=activity,
+        duration=duration,
+        created_at=datetime.utcnow()
+    )
+    db.add(entry)
+    db.commit()
+    return {"status": "success"}
+
+
+@app.post("/journal")
+async def log_journal(
+    username: str = Form(...),
+    password: str = Form(...),
+    entry: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    user = authenticate_user(db, username, password)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+    journal = JournalEntry(
+        user_id=user.id,
+        entry=entry,
+        created_at=datetime.utcnow()
+    )
+    db.add(journal)
+    db.commit()
+    return {"status": "success"}
 
 @app.get("/insights/{username}")
 async def get_insights(
