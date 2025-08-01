@@ -5,7 +5,7 @@ To run this project, follow the steps below. These instructions assume you have 
 ## Setup & Execution Guide
 To run this project, follow the steps below. These instructions assume you have already downloaded, pulled, or cloned the repository to your local machine.
 
-1. Set Up a Virtual Environment
+1. Set Up a Virtual Environment  
 Open your terminal or command prompt and navigate to the project directory. 
 
 Create a virtual environment using:
