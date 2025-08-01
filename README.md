@@ -18,9 +18,9 @@ Activate the virtual environment:
 - Linux/macOS
 source <environment-name>/bin/activate
 
-2. Install Dependencies
-Once the virtual environment is active, install the required packages:
+2. Install Dependencies  
+Once the virtual environment is active, install the required packages:  
 pip install -r requirements.txt
 
-3. Run the Application
+3. Run the Application  
 Simply run the 'launch.bat' batch file by double-clicking it to run the program
