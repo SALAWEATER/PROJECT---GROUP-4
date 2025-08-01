@@ -9,8 +9,8 @@ import base64
 from typing import Optional
 
 # Correct imports from your modules
-from database import engine, get_db, Base  # Add Base here
-from models import ActivityEntry, JournalEntry, User, MoodEntry
+from data.database import engine, get_db, Base  # Add Base here
+from .models import ActivityEntry, JournalEntry, User, MoodEntry
 
 # Create tables - NOW WITH ACCESS TO Base
 Base.metadata.create_all(bind=engine)
