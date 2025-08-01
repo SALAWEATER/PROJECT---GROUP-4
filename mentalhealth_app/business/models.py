@@ -1,7 +1,7 @@
 # models.py
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime
-from database import Base  # Correct import from database module
+from mentalhealth_app.data.database import Base  # Correct import from database module
 
 class User(Base):
     __tablename__ = "users"
