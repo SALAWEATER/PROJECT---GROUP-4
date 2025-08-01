@@ -23,11 +23,4 @@ Once the virtual environment is active, install the required packages:
 pip install -r requirements.txt
 
 3. Run the Application
-Navigate to the folder containing the source code files, then run the scripts in the following order:
-
-In Terminal Window 1:
-python init_db.py
-python app.py
-
-In Terminal Window 2 (new terminal session):
-python frontend.py
+Simply run the 'launch.bat' batch file by double-clicking it to run the program
