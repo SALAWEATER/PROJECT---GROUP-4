@@ -1,18 +1,33 @@
-# Initial README
+# Mentalhealth-app
+MentalHealth App is a Python-based application designed to provide users with a simple and interactive platform for managing mental wellness. It features a backend powered by a database (initialized with init_db.py), an API or server logic (app.py), and a user-friendly graphical interface (frontend.py). The app allows users to interact with mental health resources, possibly including mood tracking, journaling, or connecting with support tools. The application uses a modular structure and is easily set up using virtual environments, making it simple to run on both Windows and Unix-based systems.
+To run this project, follow the steps below. These instructions assume you have already downloaded, pulled, or cloned the repository to your local machine.
 
-To run the file, assuming you have downloaded, pulled or cloned the repository or related files, I would suggest creating a virtual environment by navigating to your desired file location through the terminal then typing:
-    python -m venv <environment-name>
-after which, activate the virtual environment through 
-    <environment-name>/Scripts/activate
-you should see the the name of the environment on the left-most side of your terminal.
-once done navigate to the location of the source codes then run the following in a specific order
-run the requirements.txt using the following syntax:
-    pip install -r requirements.txt
-then run the source codes using:
-    python <filename>.py
-in one terminal window:
-    1. init_db.py
-    2. app.py
-then in another terminal window:
-    3. frontend.py
-should be the same in linux/macos and windows just replace the "/" in the file paths to "\" when running on a windows machine.
+## Setup & Execution Guide
+To run this project, follow the steps below. These instructions assume you have already downloaded, pulled, or cloned the repository to your local machine.
+
+1. Set Up a Virtual Environment
+Open your terminal or command prompt and navigate to the project directory. 
+
+Create a virtual environment using:
+python -m venv <environment-name>
+
+Activate the virtual environment:
+- Windows
+<environment-name>\Scripts\activate
+
+- Linux/macOS
+source <environment-name>/bin/activate
+
+2. Install Dependencies
+Once the virtual environment is active, install the required packages:
+pip install -r requirements.txt
+
+3. Run the Application
+Navigate to the folder containing the source code files, then run the scripts in the following order:
+
+In Terminal Window 1:
+python init_db.py
+python app.py
+
+In Terminal Window 2 (new terminal session):
+python frontend.py
