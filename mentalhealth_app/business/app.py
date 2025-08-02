@@ -5,11 +5,12 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 import matplotlib.pyplot as plt
 import io
+import re
 import base64
-from typing import Optional
-
+from typing import Optional, List
 # Correct imports from your modules
 from mentalhealth_app.data.database import engine, get_db, Base  # Add Base here
+from .services.icd_service import ICDService
 from .models import ActivityEntry, JournalEntry, User, MoodEntry
 
 # Create tables - NOW WITH ACCESS TO Base
@@ -25,11 +26,77 @@ def get_password_hash(password: str):
 
 
 # Authentication
-def authenticate_user(db: Session, username: str, password: str):
+async def authenticate_user(
+    username: str = Form(...),
+    password: str = Form(...),
+    db: Session = Depends(get_db)
+):
     user = db.query(User).filter(User.username == username).first()
     if not user or user.hashed_password != get_password_hash(password):
-        return False
+        raise HTTPException(status_code=401, detail="Invalid credentials")
     return user
+
+@app.get("/icd/categories")
+async def get_mental_health_categories(
+    username: str = Form(...),
+    password: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    # Fix: Add await here
+    user = await authenticate_user(username, password, db)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    try:
+        icd_service = ICDService()
+        return await icd_service.get_mental_health_categories()
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.post("/icd/search")
+async def search_icd_conditions(
+    query: str = Form(..., min_length=2),
+    username: str = Form(...),
+    password: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    try:
+        # Authenticate
+        user = await authenticate_user(username, password, db)
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+
+        # Perform search
+        icd_service = ICDService()
+        raw_results = await icd_service.search_conditions(query)
+        
+        # Format results consistently
+        results = []
+        for item in raw_results:
+            results.append({
+                "code": item.get("theCode", ""),
+                "title": item.get("title", ""),
+                "definition": item.get("definition", ""),
+                "entity_id": item.get("id", ""),
+                # Remove HTML tags from title
+                "clean_title": re.sub(r'<[^>]+>', '', item.get("title", ""))
+            })
+        
+        return {
+            "status": "success",
+            "count": len(results),
+            "results": results
+        }
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Search failed: {str(e)}"
+        )
 
 # Endpoints
 @app.post("/mood_history")
@@ -38,7 +105,7 @@ async def mood_history(
     password: str = Form(...),
     db: Session = Depends(get_db)
 ):
-    user = authenticate_user(db, username, password)
+    user = await authenticate_user(username, password, db)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     entries = db.query(MoodEntry).filter(MoodEntry.user_id == user.id).order_by(MoodEntry.created_at.desc()).limit(10).all()
@@ -57,7 +124,7 @@ async def activity_history(
     password: str = Form(...),
     db: Session = Depends(get_db)
 ):
-    user = authenticate_user(db, username, password)
+    user = await authenticate_user(username, password, db)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     
@@ -86,20 +153,13 @@ async def journal_history(
     password: str = Form(...),
     db: Session = Depends(get_db)
 ):
-    user = authenticate_user(db, username, password)
-    if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-    
-    # Strictly filter by user_id and verify ownership
+    user = await authenticate_user(username, password, db)  # Add await here
     entries = db.query(JournalEntry).filter(
-        JournalEntry.user_id == user.id
+        JournalEntry.user_id == user.id  # Now works correctly
     ).order_by(
         JournalEntry.created_at.desc()
     ).limit(20).all()
     
-    if not entries:
-        return []
-        
     return [
         {
             "entry": entry.entry,
@@ -238,11 +298,9 @@ async def log_journal(
     entry: str = Form(...),
     db: Session = Depends(get_db)
 ):
-    user = authenticate_user(db, username, password)
-    if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+    user = await authenticate_user(username, password, db)  # Add await here
     journal = JournalEntry(
-        user_id=user.id,
+        user_id=user.id,  # Now works correctly
         entry=entry,
         created_at=datetime.utcnow()
     )

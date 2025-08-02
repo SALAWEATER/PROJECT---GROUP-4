@@ -1,6 +1,6 @@
 # models.py
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, JSON
 from mentalhealth_app.data.database import Base  # Correct import from database module
 
 class User(Base):
@@ -34,4 +34,14 @@ class JournalEntry(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, index=True)
     entry = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class UserICDLink(Base):
+    __tablename__ = "user_icd_links"
+    
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    entity_id = Column(String)  # ICD-11 entity ID
+    entity_title = Column(String)
+    notes = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)

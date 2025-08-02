@@ -1,6 +1,7 @@
 import flet as ft
 import requests
 from datetime import datetime
+import json
 
 def main(page: ft.Page):
     # Light mode settings
@@ -38,6 +39,11 @@ def main(page: ft.Page):
     journal_entry = ft.TextField(label="Journal", multiline=True, width=300, height=150)
     journal_entries = ft.ListView(expand=True)
 
+    # Get Help
+    help_search = ft.TextField(label="Search conditions", width=300)
+    help_results = ft.ListView(expand=True)
+    help_categories = ft.ListView(expand=True)
+
     # Navigation Rail (Left sidebar)
     nav_rail = ft.NavigationRail(
         selected_index=0,
@@ -64,6 +70,11 @@ def main(page: ft.Page):
                 icon=ft.Icons.BOOK_OUTLINED,
                 selected_icon=ft.Icons.BOOK,
                 label="Journal"
+            ),
+            ft.NavigationRailDestination(
+                icon=ft.Icons.HELP_OUTLINE,
+                selected_icon=ft.Icons.HELP,
+                label="Get Help"
             ),
         ],
         on_change=lambda e: change_tab(e.control.selected_index)
@@ -245,6 +256,69 @@ def main(page: ft.Page):
         except Exception as e:
             show_snackbar(f"Error: {str(e)}")
 
+    async def fetch_mental_health_categories():
+        try:
+            response = requests.get(
+                "http://localhost:8000/icd/categories",
+                data={
+                    "username": current_user.value,
+                    "password": current_password.value
+                },
+                headers={"Content-Type": "application/x-www-form-urlencoded"}
+            )
+            if response.status_code == 200:
+                help_categories.controls.clear()
+                for category in response.json():
+                    help_categories.controls.append(
+                        ft.ListTile(
+                            title=ft.Text(category["title"]),
+                            subtitle=ft.Text(category.get("definition", "")[:100] + "..."),
+                        )
+                    )
+                page.update()
+        except Exception as e:
+            show_snackbar(f"Error loading categories: {str(e)}")
+
+    async def search_conditions(e):
+        if not help_search.value or len(help_search.value.strip()) < 2:
+            show_snackbar("Please enter at least 2 characters")
+            return
+            
+        try:
+            response = requests.post(
+                "http://localhost:8000/icd/search",
+                data={
+                    "username": current_user.value,
+                    "password": current_password.value,
+                    "query": help_search.value.strip()
+                },
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                help_results.controls.clear()
+                
+                if data["status"] == "success":
+                    for condition in data["results"]:
+                        help_results.controls.append(
+                            ft.ListTile(
+                                title=ft.Text(condition["clean_title"]),
+                                subtitle=ft.Text(f"Code: {condition['code']}"),
+                                on_click=lambda e, id=condition["entity_id"]: show_condition_details(id)
+                            )
+                        )
+                    page.update()
+                else:
+                    show_snackbar("No results found")
+            else:
+                error_msg = response.json().get("detail", "Search failed")
+                show_snackbar(f"Error: {error_msg}")
+                
+        except Exception as e:
+            show_snackbar(f"Search error: {str(e)}")
+
     def change_tab(index):
         content_column.controls.clear()
         
@@ -278,6 +352,18 @@ def main(page: ft.Page):
                 ft.Text("Previous Entries", size=16),
                 journal_entries
             ])
+
+        elif index == 3:  # Get Help
+            content_column.controls.extend([
+                ft.Text("Mental Health Resources", size=20),
+                help_search,
+                ft.ElevatedButton("Search", on_click=search_conditions),
+                ft.Divider(),
+                ft.Text("Common Mental Health Categories", size=16),
+                help_categories
+            ])
+            # Call the function directly since it's now inside main()
+            fetch_mental_health_categories()
         
         page.update()
 
@@ -425,4 +511,9 @@ def main(page: ft.Page):
     page.on_route_change = route_change
     page.go("/login")
 
+
+    def show_condition_details(entity_id):
+        # You can expand this to show full details in a dialog
+        show_snackbar(f"Showing details for condition ID: {entity_id}", ft.Colors.BLUE)
+        
 ft.app(target=main)
